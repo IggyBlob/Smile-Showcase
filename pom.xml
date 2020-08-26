@@ -13,4 +13,39 @@
         <maven.compiler.source>1.8</maven.compiler.source>
     </properties>
 
+    <dependencies>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-core</artifactId>
+            <version>2.5.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-io</artifactId>
+            <version>2.5.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-mkl</artifactId>
+            <version>2.5.1</version>
+        </dependency>
+        <!--
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacpp</artifactId>
+            <version>1.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>openblas</artifactId>
+            <version>0.3.9-1.5.3</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>arpack-ng</artifactId>
+            <version>3.7.0-1.5.3</version>
+        </dependency>
+        -->
+    </dependencies>
+
 </project>
