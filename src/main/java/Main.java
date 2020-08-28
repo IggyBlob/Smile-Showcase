@@ -60,6 +60,7 @@ public class Main {
         validateModel(yPred, dataFrame.doubleVector("V14").array());
 
         // print the model to inspect its parameters
+        System.out.println(">>> DUMP MODEL");
         System.out.println(deserializedModel);
     }
 
@@ -71,6 +72,7 @@ public class Main {
      */
     private static DataFrame readFromCsv() throws IOException, URISyntaxException {
         DataFrame dataFrame = Read.csv("boston-house-prices.csv");
+        System.out.println(">>> READ DATA FROM CSV");
         System.out.println(dataFrame.toString(5));
         return dataFrame;
     }
@@ -87,6 +89,7 @@ public class Main {
         FeatureTransform transformer = WinsorScaler.fit(featureDataFrame);
         DataFrame transformedFeatureDataFrame = transformer.transform(featureDataFrame);
         DataFrame transformedDataFrame = transformedFeatureDataFrame.merge(dataFrame.doubleVector("V14"));
+        System.out.println(">>> TRANSFORM DATA SET");
         System.out.println(transformedDataFrame.toString(5));
         return transformedDataFrame;
     }
@@ -100,7 +103,9 @@ public class Main {
     private static LinearModel createAndFitRegressionModel(DataFrame dataFrame) {
         Formula targetColumn = Formula.lhs("V14");
         LinearModel model = RidgeRegression.fit(targetColumn, dataFrame);
+        System.out.println(">>> FIT MODEL");
         System.out.println(model.formula());
+        System.out.println();
         return model;
     }
 
@@ -115,6 +120,8 @@ public class Main {
         objectOutputStream.writeObject(model);
         objectOutputStream.flush();
         objectOutputStream.close();
+        System.out.println(">>> SERIALIZE MODEL TO FILE `model.mlm`");
+        System.out.println();
     }
 
     /**
@@ -135,7 +142,9 @@ public class Main {
         {
             buffer.clear();
         }
+        System.out.println(">>> SERIALIZE MODEL TO JSON");
         System.out.println(new String(protostuff));
+        System.out.println();
     }
 
     /**
@@ -148,7 +157,9 @@ public class Main {
         ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
         LinearModel model = (LinearModel) objectInputStream.readObject();
         objectInputStream.close();
+        System.out.println(">>> DESERIALIZE MODEL FROM FILE `model.mlm`");
         System.out.println(model.formula());
+        System.out.println();
         return model;
     }
 
@@ -163,7 +174,9 @@ public class Main {
      */
     private static double[] predict(LinearModel linearModel, DataFrame testData) {
         double[] yPred = linearModel.predict(testData);
+        System.out.println(">>> PREDICT DATA");
         System.out.println(Arrays.toString(yPred));
+        System.out.println();
         return yPred;
     }
 
@@ -174,9 +187,11 @@ public class Main {
      * @param yTrain a vector of actual values
      */
     private static void validateModel(double[] yPred, double[] yTrain) {
+        System.out.println(">>> VALIDATE MODEL");
         System.out.println("MAD  (Mean Absolute Deviation):  " + MeanAbsoluteDeviation.of(yTrain, yPred));
         System.out.println("MSE  (Mean Squared Error):       " + MSE.of(yTrain, yPred));
         System.out.println("RMSE (Root Mean Squared Error):  " + RMSE.of(yTrain, yPred));
         System.out.println("RSS  (Residual Sum of Squares):  " + RSS.of(yTrain, yPred));
+        System.out.println();
     }
 }
