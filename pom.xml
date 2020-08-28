@@ -14,43 +14,95 @@
     </properties>
 
     <dependencies>
+        <!-- Smile Core Library -->
         <dependency>
             <groupId>com.github.haifengl</groupId>
             <artifactId>smile-core</artifactId>
             <version>2.5.1</version>
         </dependency>
+
+        <!-- Smile I/O library -->
         <dependency>
             <groupId>com.github.haifengl</groupId>
             <artifactId>smile-io</artifactId>
             <version>2.5.1</version>
         </dependency>
-        <dependency>
-            <groupId>com.github.haifengl</groupId>
-            <artifactId>smile-mkl</artifactId>
-            <version>2.5.1</version>
-        </dependency>
-        <!--
+
+        <!-- BLAS dependencies (native)
+             Some algorithms rely on BLAS and LAPACK (e.g. Linear Regression).
+             To use these algorithms, OpenBLAS needs to be added for optimized matrix computation.
+             Here, the macOS/Windows/Linux binaries for 64-bit Intel CPUs are included.
+             These should be limited to the platform the Smile app actually runs on. -->
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>javacpp</artifactId>
             <version>1.5.3</version>
+            <classifier>macosx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacpp</artifactId>
+            <version>1.5.3</version>
+            <classifier>windows-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>javacpp</artifactId>
+            <version>1.5.3</version>
+            <classifier>linux-x86_64</classifier>
         </dependency>
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>openblas</artifactId>
             <version>0.3.9-1.5.3</version>
+            <classifier>macosx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>openblas</artifactId>
+            <version>0.3.9-1.5.3</version>
+            <classifier>windows-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>openblas</artifactId>
+            <version>0.3.9-1.5.3</version>
+            <classifier>linux-x86_64</classifier>
         </dependency>
         <dependency>
             <groupId>org.bytedeco</groupId>
             <artifactId>arpack-ng</artifactId>
             <version>3.7.0-1.5.3</version>
+            <classifier>macosx-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>arpack-ng</artifactId>
+            <version>3.7.0-1.5.3</version>
+            <classifier>windows-x86_64</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.bytedeco</groupId>
+            <artifactId>arpack-ng</artifactId>
+            <version>3.7.0-1.5.3</version>
+            <classifier>linux-x86_64</classifier>
+        </dependency>
+
+        <!-- Smile MKL library
+             This could be included INSTEAD of the BLAS dependencies above.
+             However, this will add the native dependencies for all platforms, not only the ones needed. -->
+        <!--
+        <dependency>
+            <groupId>com.github.haifengl</groupId>
+            <artifactId>smile-mkl</artifactId>
+            <version>2.5.1</version>
         </dependency>
         -->
-        <dependency>
-            <groupId>io.protostuff</groupId>
-            <artifactId>protostuff-core</artifactId>
-            <version>1.7.2</version>
-        </dependency>
+
+        <!-- protostuff libraries
+             These are required for JSON serialization of the model.
+             protostuff-runtime is needed for generating schemas at runtime.
+             protostuff-json is needed for JSON serialization. -->
         <dependency>
             <groupId>io.protostuff</groupId>
             <artifactId>protostuff-runtime</artifactId>
@@ -60,6 +112,13 @@
             <groupId>io.protostuff</groupId>
             <artifactId>protostuff-json</artifactId>
             <version>1.7.2</version>
+        </dependency>
+
+        <!-- SLF4J Logging Facade -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>1.7.30</version>
         </dependency>
     </dependencies>
 
