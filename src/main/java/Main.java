@@ -1,3 +1,7 @@
+import io.protostuff.JsonIOUtil;
+import io.protostuff.LinkedBuffer;
+import io.protostuff.Schema;
+import io.protostuff.runtime.RuntimeSchema;
 import smile.data.DataFrame;
 import smile.data.formula.Formula;
 import smile.feature.FeatureTransform;
@@ -21,8 +25,9 @@ import java.util.Arrays;
  *     <li>loading data from file</li>
  *     <li>feature/data frame transformations</li>
  *     <li>fitting a regression model</li>
- *     <li>serialization/deserialization of a model</li>
- *     <li>using a regression model for prediction</li>
+ *     <li>serializing/deserializing a model to/from binary representation using vanilla Java</li>
+ *     <li>serializing a model to JSON using protostuff</li>
+ *     <li>applying a trained regression model to predict values</li>
  *     <li>validating the model</li>
  * </ul>
  */
@@ -41,6 +46,9 @@ public class Main {
 
         // serialize the linear regression model to the file system
         serializeModel(model);
+
+        // serialize the linear regression model to JSON and print it to the console
+        serializeModelJson(model);
 
         // re-load the serialized model from the file system
         LinearModel deserializedModel = deserializeModel();
@@ -107,6 +115,27 @@ public class Main {
         objectOutputStream.writeObject(model);
         objectOutputStream.flush();
         objectOutputStream.close();
+    }
+
+    /**
+     * Serializes a model to JSON and prints it to the console.
+     * To generate the JSON representation of a model, the protostuff library is used,
+     * as recommended by the official Smile docs.
+     * @param model the Smile model to be serialized to JSON
+     */
+    private static void serializeModelJson(LinearModel model) {
+        Schema<LinearModel> schema = RuntimeSchema.getSchema(LinearModel.class);
+        LinkedBuffer buffer = LinkedBuffer.allocate(512);
+        final byte[] protostuff;
+        try
+        {
+            protostuff = JsonIOUtil.toByteArray(model, schema, false, buffer);
+        }
+        finally
+        {
+            buffer.clear();
+        }
+        System.out.println(new String(protostuff));
     }
 
     /**
