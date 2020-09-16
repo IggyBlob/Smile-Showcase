@@ -1,7 +1,3 @@
-import io.protostuff.JsonIOUtil;
-import io.protostuff.LinkedBuffer;
-import io.protostuff.Schema;
-import io.protostuff.runtime.RuntimeSchema;
 import smile.data.DataFrame;
 import smile.data.formula.Formula;
 import smile.feature.FeatureTransform;
@@ -14,65 +10,72 @@ import smile.validation.MeanAbsoluteDeviation;
 import smile.validation.RMSE;
 import smile.validation.RSS;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.List;
 
 /**
- * A simple program showcasing the following aspects
- * of the SMILE Machine Learning Library (https://haifengl.github.io/):
+ * A simple program for analyzing (native) memory allocations
+ * of the SMILE Machine Learning Library (https://haifengl.github.io/).
+ * It executes the following operations:
  * <ul>
  *     <li>loading data from file</li>
  *     <li>feature/data frame transformations</li>
  *     <li>fitting a regression model</li>
- *     <li>serializing/deserializing a model to/from binary representation using vanilla Java</li>
- *     <li>serializing a model to JSON using protostuff</li>
  *     <li>applying a trained regression model to predict values</li>
  *     <li>validating the model</li>
  * </ul>
  */
 public class Main {
 
-    public static void main(String[] args) throws IOException, URISyntaxException, ClassNotFoundException {
+    private static final int NO_OF_ITERATIONS = 10;
+    private static final List<String> fileNames = Arrays.asList(
+            "bike-sharing.csv",
+            "election-data.csv",
+            "energydata-complete.csv",
+            "songs-year-prediction.csv",
+            "geographical-origin-of-music.csv",
+            "online-news-popularity.csv",
+            "superconductivity.csv",
+            "winequality-white.csv");
 
-        // load CSV training data into a Smile DataFrame
-        DataFrame dataFrame = readFromCsv();
+    public static void main(String[] args) throws IOException, URISyntaxException {
+        System.out.println("Press any key to start the showcase...");
+        System.in.read();
+        for (int i = 0; i < NO_OF_ITERATIONS; i++) {
+            for (String fileName : fileNames) {
+                // load CSV training data into a Smile DataFrame
+                DataFrame dataFrame = readFromCsv(fileName);
 
-        // apply feature transformations on the DataFrame
-        DataFrame transformedDataFrame = transformDataFrame(dataFrame);
+                // apply feature transformations on the DataFrame
+                DataFrame transformedDataFrame = transformDataFrame(dataFrame);
 
-        // instantiate and train a linear regression model using the read training data
-        LinearModel model = createAndFitRegressionModel(transformedDataFrame);
+                // instantiate and train a linear regression model using the read training data
+                LinearModel model = createAndFitRegressionModel(transformedDataFrame);
 
-        // serialize the linear regression model to the file system
-        serializeModel(model);
+                // use the deserialized model to predict the _TRAINING_ data
+                double[] yPred = predict(model, transformedDataFrame);
 
-        // serialize the linear regression model to JSON and print it to the console
-        serializeModelJson(model);
-
-        // re-load the serialized model from the file system
-        LinearModel deserializedModel = deserializeModel();
-
-        // use the deserialized model to predict the _TRAINING_ data
-        double[] yPred = predict(deserializedModel, transformedDataFrame);
-
-        // compare the predictions to the actual target column (V14) of the _TRAINING_ data
-        validateModel(yPred, dataFrame.doubleVector("V14").array());
-
-        // print the model to inspect its parameters
-        System.out.println(">>> DUMP MODEL");
-        System.out.println(deserializedModel);
+                // compare the predictions to the actual target column (V14) of the _TRAINING_ data
+                validateModel(yPred, dataFrame.column(dataFrame.ncols() - 1).toDoubleArray());
+            }
+        }
+        System.out.println("Press any key to exit...");
+        System.in.read();
     }
 
     /**
-     * Loads the Boston house prices dataset from the file system.
+     * Loads the specified dataset from the file system.
      * It uses the built-in CSV parser of Smile, provided via the
      * <code>Read</code> interface.
+     * @param fileName the dataset to be loaded
      * @return a Smile DataFrame holding the CSV data
      */
-    private static DataFrame readFromCsv() throws IOException, URISyntaxException {
-        DataFrame dataFrame = Read.csv("boston-house-prices.csv");
-        System.out.println(">>> READ DATA FROM CSV");
+    private static DataFrame readFromCsv(String fileName) throws IOException, URISyntaxException {
+        String filePath = "datasets/" + fileName;
+        System.out.println(">>> READ DATA FROM " + filePath);
+        DataFrame dataFrame = Read.csv(filePath);
         System.out.println(dataFrame.toString(5));
         return dataFrame;
     }
@@ -81,86 +84,29 @@ public class Main {
      * Winsorizes a DataFrame.
      * Winsorization prevents outliers by limiting extreme feature values
      * to the 5th/95th percentile of the original distribution.
-     * @param dataFrame a Smile Dataframe holding Boston house price data to be winsorized
-     * @return the winsorized Dataframe; the target column (V14) remains untouched
+     * @param dataFrame a Smile Dataframe to be winsorized
+     * @return the winsorized Dataframe; the target column (last column) remains untouched
      */
     private static DataFrame transformDataFrame(DataFrame dataFrame) {
-        DataFrame featureDataFrame = dataFrame.drop("V14");
+        System.out.println(">>> TRANSFORM DATA SET");
+        int targetColumnIdx = dataFrame.ncols() - 1;
+        DataFrame featureDataFrame = dataFrame.drop(targetColumnIdx);
         FeatureTransform transformer = WinsorScaler.fit(featureDataFrame);
         DataFrame transformedFeatureDataFrame = transformer.transform(featureDataFrame);
-        DataFrame transformedDataFrame = transformedFeatureDataFrame.merge(dataFrame.doubleVector("V14"));
-        System.out.println(">>> TRANSFORM DATA SET");
-        System.out.println(transformedDataFrame.toString(5));
-        return transformedDataFrame;
+        return transformedFeatureDataFrame.merge(dataFrame.column(targetColumnIdx));
     }
 
     /**
      * Instantiates and trains a Smile Ridge regression model.
-     * The target column y of the model is V14.
-     * @param dataFrame a Smile DataFrame holding the Boston house price training data
+     * The target column y of the model is the last column of the DataFrame.
+     * @param dataFrame a Smile DataFrame holding training data
      * @return a fitted Smile Ridge regression model
      */
     private static LinearModel createAndFitRegressionModel(DataFrame dataFrame) {
-        Formula targetColumn = Formula.lhs("V14");
-        LinearModel model = RidgeRegression.fit(targetColumn, dataFrame);
         System.out.println(">>> FIT MODEL");
-        System.out.println(model.formula());
-        System.out.println();
-        return model;
-    }
-
-    /**
-     * Serializes a model in binary representation to the file system.
-     * The byte stream is written to a file "model.mlm" using vanilla Java.
-     * @param model the Smile model to be serialized
-     */
-    private static void serializeModel(LinearModel model) throws IOException {
-        FileOutputStream fileOutputStream = new FileOutputStream("model.mlm");
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-        objectOutputStream.writeObject(model);
-        objectOutputStream.flush();
-        objectOutputStream.close();
-        System.out.println(">>> SERIALIZE MODEL TO FILE `model.mlm`");
-        System.out.println();
-    }
-
-    /**
-     * Serializes a model to JSON and prints it to the console.
-     * To generate the JSON representation of a model, the protostuff library is used,
-     * as recommended by the official Smile docs.
-     * @param model the Smile model to be serialized to JSON
-     */
-    private static void serializeModelJson(LinearModel model) {
-        Schema<LinearModel> schema = RuntimeSchema.getSchema(LinearModel.class);
-        LinkedBuffer buffer = LinkedBuffer.allocate(512);
-        final byte[] protostuff;
-        try
-        {
-            protostuff = JsonIOUtil.toByteArray(model, schema, false, buffer);
-        }
-        finally
-        {
-            buffer.clear();
-        }
-        System.out.println(">>> SERIALIZE MODEL TO JSON");
-        System.out.println(new String(protostuff));
-        System.out.println();
-    }
-
-    /**
-     * Loads a binary-serialized model from the file system.
-     * The model is read from a file "model.mlm" using vanilla Java.
-     * @return the Smile linear regression model read from the file system.
-     */
-    private static LinearModel deserializeModel() throws IOException, ClassNotFoundException {
-        FileInputStream fileInputStream = new FileInputStream("model.mlm");
-        ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-        LinearModel model = (LinearModel) objectInputStream.readObject();
-        objectInputStream.close();
-        System.out.println(">>> DESERIALIZE MODEL FROM FILE `model.mlm`");
-        System.out.println(model.formula());
-        System.out.println();
-        return model;
+        String targetColumnName = dataFrame.names()[dataFrame.names().length - 1];
+        Formula targetColumn = Formula.lhs(targetColumnName);
+        return RidgeRegression.fit(targetColumn, dataFrame);
     }
 
     /**
@@ -173,11 +119,8 @@ public class Main {
      * @return a double vector containing the predicted values
      */
     private static double[] predict(LinearModel linearModel, DataFrame testData) {
-        double[] yPred = linearModel.predict(testData);
         System.out.println(">>> PREDICT DATA");
-        System.out.println(Arrays.toString(yPred));
-        System.out.println();
-        return yPred;
+        return linearModel.predict(testData);
     }
 
     /**
