@@ -14,6 +14,9 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * A simple program for analyzing (native) memory allocations
@@ -29,8 +32,8 @@ import java.util.List;
  */
 public class Main {
 
-    private static final int NO_OF_ITERATIONS = 10;
-    private static final List<String> fileNames = Arrays.asList(
+    private static final int NO_OF_ITERATIONS = 1000;
+    private static final List<String> FILE_NAMES = Arrays.asList(
             "bike-sharing.csv",
             "election-data.csv",
             "energydata-complete.csv",
@@ -40,11 +43,39 @@ public class Main {
             "superconductivity.csv",
             "winequality-white.csv");
 
-    public static void main(String[] args) throws IOException, URISyntaxException {
+    public static void main(String[] args) throws IOException {
         System.out.println("Press any key to start the showcase...");
         System.in.read();
+        ExecutorService executorService = Executors.newWorkStealingPool();
+        CountDownLatch countDownLatch = new CountDownLatch(NO_OF_ITERATIONS * FILE_NAMES.size());
         for (int i = 0; i < NO_OF_ITERATIONS; i++) {
-            for (String fileName : fileNames) {
+            for (String fileName : FILE_NAMES) {
+                Runnable runnable = createRunnable(fileName, countDownLatch);
+                executorService.submit(runnable);
+            }
+        }
+        try {
+            System.out.println("Waiting for tasks to finish...");
+            countDownLatch.await();
+            System.out.println("Tasks finished");
+        } catch (InterruptedException ex) {
+            System.out.println("Tasks interrupted");
+        } finally {
+            System.out.println("Attempt to shutdown thread pool executor...");
+            executorService.shutdown();
+            if (!executorService.isTerminated()) {
+                System.out.println("Cancelling non-finished tasks forcibly...");
+            }
+            executorService.shutdownNow();
+            System.out.println("Thread pool executor shut down");
+        }
+        System.out.println("Press any key to exit...");
+        System.in.read();
+    }
+
+    private static Runnable createRunnable(String fileName, CountDownLatch countDownLatch) {
+        return () -> {
+            try {
                 // load CSV training data into a Smile DataFrame
                 DataFrame dataFrame = readFromCsv(fileName);
 
@@ -59,10 +90,12 @@ public class Main {
 
                 // compare the predictions to the actual target column (V14) of the _TRAINING_ data
                 validateModel(yPred, dataFrame.column(dataFrame.ncols() - 1).toDoubleArray());
+            } catch (Exception ex) {
+                throw new RuntimeException(ex);
+            } finally {
+                countDownLatch.countDown();
             }
-        }
-        System.out.println("Press any key to exit...");
-        System.in.read();
+        };
     }
 
     /**
