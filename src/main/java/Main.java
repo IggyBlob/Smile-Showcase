@@ -32,12 +32,11 @@ import java.util.concurrent.Executors;
  */
 public class Main {
 
-    private static final int NO_OF_ITERATIONS = 1000;
+    private static final int NO_OF_ITERATIONS = 30000; // ~4h runtime
     private static final List<String> FILE_NAMES = Arrays.asList(
             "bike-sharing.csv",
             "election-data.csv",
             "energydata-complete.csv",
-            "songs-year-prediction.csv",
             "geographical-origin-of-music.csv",
             "online-news-popularity.csv",
             "superconductivity.csv",
@@ -46,7 +45,8 @@ public class Main {
     public static void main(String[] args) throws IOException {
         System.out.println("Press any key to start the showcase...");
         System.in.read();
-        ExecutorService executorService = Executors.newWorkStealingPool();
+        long startTime = System.nanoTime();
+        ExecutorService executorService = Executors.newFixedThreadPool(8);
         CountDownLatch countDownLatch = new CountDownLatch(NO_OF_ITERATIONS * FILE_NAMES.size());
         for (int i = 0; i < NO_OF_ITERATIONS; i++) {
             for (String fileName : FILE_NAMES) {
@@ -69,8 +69,10 @@ public class Main {
             executorService.shutdownNow();
             System.out.println("Thread pool executor shut down");
         }
+        long stopTime = System.nanoTime();
         System.out.println("Press any key to exit...");
         System.in.read();
+        System.out.println(stopTime - startTime);
     }
 
     private static Runnable createRunnable(String fileName, CountDownLatch countDownLatch) {
