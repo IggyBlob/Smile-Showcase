@@ -12,9 +12,10 @@ import smile.validation.RSS;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -32,7 +33,8 @@ import java.util.concurrent.Executors;
  */
 public class Main {
 
-    private static final int NO_OF_ITERATIONS = 30000; // ~4h runtime
+    private static final int NO_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
+    private static final int NO_OF_ITERATIONS = 15000; // ~6h runtime using 4 cores
     private static final List<String> FILE_NAMES = Arrays.asList(
             "bike-sharing.csv",
             "election-data.csv",
@@ -43,21 +45,21 @@ public class Main {
             "winequality-white.csv");
 
     public static void main(String[] args) throws IOException {
-        System.out.println("Press any key to start the showcase...");
+        System.out.printf("Press any key to start the showcase with %d threads...", NO_OF_PROCESSORS);
         System.in.read();
         long startTime = System.nanoTime();
-        ExecutorService executorService = Executors.newFixedThreadPool(8);
-        CountDownLatch countDownLatch = new CountDownLatch(NO_OF_ITERATIONS * FILE_NAMES.size());
+        ExecutorService executorService = Executors.newFixedThreadPool(NO_OF_PROCESSORS);
+        List<Callable<Object>> callables = new ArrayList<>(NO_OF_ITERATIONS * FILE_NAMES.size());
         for (int i = 0; i < NO_OF_ITERATIONS; i++) {
             for (String fileName : FILE_NAMES) {
-                Runnable runnable = createRunnable(fileName, countDownLatch);
-                executorService.submit(runnable);
+                Callable<Object> callable = createCallable(fileName);
+                callables.add(callable);
             }
         }
         try {
-            System.out.println("Waiting for tasks to finish...");
-            countDownLatch.await();
-            System.out.println("Tasks finished");
+            System.out.printf("Waiting for %d tasks to finish...\n", callables.size());
+            executorService.invokeAll(callables);
+            System.out.printf("%d tasks finished", callables.size());
         } catch (InterruptedException ex) {
             System.out.println("Tasks interrupted");
         } finally {
@@ -75,8 +77,8 @@ public class Main {
         System.out.println(stopTime - startTime);
     }
 
-    private static Runnable createRunnable(String fileName, CountDownLatch countDownLatch) {
-        return () -> {
+    private static Callable<Object> createCallable(String fileName) {
+        Runnable runnable = () -> {
             try {
                 // load CSV training data into a Smile DataFrame
                 DataFrame dataFrame = readFromCsv(fileName);
@@ -94,10 +96,9 @@ public class Main {
                 validateModel(yPred, dataFrame.column(dataFrame.ncols() - 1).toDoubleArray());
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
-            } finally {
-                countDownLatch.countDown();
             }
         };
+        return Executors.callable(runnable);
     }
 
     /**
