@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A simple program for analyzing (native) memory allocations
@@ -34,7 +35,7 @@ import java.util.concurrent.Executors;
 public class Main {
 
     private static final int NO_OF_PROCESSORS = Runtime.getRuntime().availableProcessors();
-    private static final int NO_OF_ITERATIONS = 15000; // ~6h runtime using 4 cores
+    private static final int NO_OF_ITERATIONS = 15000 * 3 + 7500; // ~3.5 * 6h runtime using 4 cores
     private static final List<String> FILE_NAMES = Arrays.asList(
             "bike-sharing.csv",
             "election-data.csv",
@@ -45,7 +46,9 @@ public class Main {
             "winequality-white.csv");
 
     public static void main(String[] args) throws IOException {
-        System.out.printf("Press any key to start the showcase with %d threads...", NO_OF_PROCESSORS);
+        System.out.printf("Press any key to start the showcase with %d threads and %d tasks...",
+                NO_OF_PROCESSORS,
+                NO_OF_ITERATIONS * FILE_NAMES.size());
         System.in.read();
         long startTime = System.nanoTime();
         ExecutorService executorService = Executors.newFixedThreadPool(NO_OF_PROCESSORS);
@@ -59,12 +62,14 @@ public class Main {
         try {
             System.out.printf("Waiting for %d tasks to finish...\n", callables.size());
             executorService.invokeAll(callables);
-            System.out.printf("%d tasks finished", callables.size());
+            System.out.println("Attempt to shutdown thread pool executor...");
+            executorService.shutdown();
+            System.out.println("Waiting for unfinished tasks to complete...");
+            executorService.awaitTermination(1, TimeUnit.HOURS);
+            System.out.printf("%d tasks finished\n", callables.size());
         } catch (InterruptedException ex) {
             System.out.println("Tasks interrupted");
         } finally {
-            System.out.println("Attempt to shutdown thread pool executor...");
-            executorService.shutdown();
             if (!executorService.isTerminated()) {
                 System.out.println("Cancelling non-finished tasks forcibly...");
             }
